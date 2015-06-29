@@ -103,13 +103,72 @@
   MultiParty_.prototype.startPollingConnections_ = function(){
     var self = this;
     self.pollInterval = setInterval(function(){
-      self.listAllPeers(function(newList){
-        for(var i = 0; i < newList.length; i++){
-          if(!self.peers.hasOwnProperty(newList[i])){
+      for (var peer_id in self.peers) {
+        if (!self.peers.hasOwnProperty(peer_id)) {
+          continue;
+        }
+        var peer = multiparty.peers[peer_id];
+        // try to reconnect if a peerConnection is closed
+        var stream = peer.call.remoteStream;
+        if(!stream) {
+          continue;
+        }
+        var videoTrack = stream.getVideoTracks()[0];
+        var audioTrack = stream.getAudioTracks()[0];
+        var isMuted = {
+          audio: !audioTrack.enabled,
+          video: !videoTrack.enabled
+        };
+
+        var reconnect = {
+          video: false,
+          screen: false,
+          data: false
+        }
+
+        if(peer.call){
+          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
+          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
+          reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
+          reconnect.video |= !peer.call.open;
+        }
+        if(peer.screen){
+          reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.screen_sender.peerConnection));
+          reconnect.screen |= !peer.screen_sender.open;
+        }
+        if(peer.data){
+          reconnect.data |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.DCconn.peerConnection));
+          reconnect.data |= !peer.DCconn.open;
+        }
+
+        if(reconnect.video) {
+          self.emit('ms_reconnecting', peer_id);
+        }
+
+        if(reconnect.video || reconnect.screen || reconnect.data) {
+          if(!peer.reconnectIndex_){
+            peer.reconnectIndex_ = 1;
+          } else {
+            peer.reconnectIndex_++;
+          }
+          if (peer.reconnectIndex_ > 3) {
+            self.fire_('ms_close', peer_id);
+            self.fire_('ss_close', peer_id);
+            self.fire_('dc_close', peer_id);
+          }
+          self.reconnect(peer_id, reconnect);
+        } else {
+          peer.reconnectIndex_ = 0;
+        }
+      }
+
+      self.listAllPeers(function(newList) {
+        for (var i = 0; i < newList.length; i++) {
+          if (!self.peers.hasOwnProperty(newList[i])) {
             self.reconnect(newList[i]);
           }
         }
-        for(var peer_id in self.peers){
+        for (var peer_id in self.peers) {
           if (!self.peers.hasOwnProperty(peer_id)) {
             continue;
           }
@@ -118,54 +177,8 @@
             self.fire_('ss_close', peer_id);
             self.fire_('dc_close', peer_id);
             self.removePeer(peer_id);
-          } else {
-            var peer = multiparty.peers[peer_id];
-            // try to reconnect if a peerConnection is closed
-            var videoTrack = peer.call.remoteStream.getVideoTracks()[0];
-            var audioTrack = peer.call.remoteStream.getAudioTracks()[0];
-            var isMuted = {
-              audio: !audioTrack.enabled,
-              video: !videoTrack.enabled
-            };
-
-            var reconnect = {
-              video: false,
-              screen: false,
-              data: false
-            }
-
-            if(peer.call){
-              reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
-              reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
-              reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
-              reconnect.video |= !peer.call.open;
-            }
-            if(peer.screen){
-              reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.screen_sender.peerConnection));
-              reconnect.screen |= !peer.screen_sender.open;
-            }
-            if(peer.data){
-              reconnect.data |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.DCconn.peerConnection));
-              reconnect.data |= !peer.DCconn.open;
-            }
-
-            if(reconnect.video || reconnect.screen || reconnect.data) {
-              if(!peer.reconnectIndex_){
-                peer.reconnectIndex_ = 1;
-              } else {
-                peer.reconnectIndex_++;
-              }
-              if (peer.reconnectIndex_ > 3) {
-                self.fire_('ms_close', peer_id);
-                self.fire_('ss_close', peer_id);
-                self.fire_('dc_close', peer_id);
-              }
-              self.reconnect(peer_id, reconnect);
-            } else {
-              peer.reconnectIndex_ = 0;
-            }
           }
-        };
+        }
       })
     }, self.opts.polling_interval);
   }
