@@ -416,7 +416,6 @@
       isReconnect = false;
     }
 
-    self.peers[peer_id].screen_receiver.video = stream;
     self.fire_('peer_ss', {src: URL.createObjectURL(stream), id: peer_id, reconnect: isReconnect});
   }
 
