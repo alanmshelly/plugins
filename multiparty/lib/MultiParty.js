@@ -28,11 +28,6 @@
     // option をチェック
     // room, myid, key プロパティを割り当てる
     this.opts = MultiParty_.util.checkOpts_(opts);
-
-    var self = this;
-    setTimeout(function(ev){
-      self.conn2SkyWay_();
-    }, 0);
   }
 
   // EventEmitterを継承する
@@ -184,7 +179,7 @@
         self.startCall_();
 
       }, function(err) {
-        throw err;
+        self.fire_('error', err);
       }
     );
   }
@@ -641,6 +636,14 @@
 
   ////////////////////////////////////
   // public method
+
+  MultiParty_.prototype.start = function() {
+    var self = this;
+    setTimeout(function(){
+      self.conn2SkyWay_()
+    }, 0);
+    return self;
+  }
 
   MultiParty_.prototype.send = function(data) {
     if(this.peer) this.send_(data);
