@@ -776,6 +776,9 @@
   MultiParty_.prototype.reconnect = function(peer_id, connections) {
     var self = this;
     var peer = self.peers[peer_id];
+    if(peer === undefined) {
+      self.peers[peer_id] = peer = {};
+    }
     if(connections === undefined) {
       connections = {
         video: true,
@@ -783,51 +786,50 @@
         data: true
       }
     }
-    if(peer) {
-      if(connections.video) {
-        if(peer.call && peer.call.close){
-          peer.call.close();
+    if(connections.video) {
+      if(peer.call && peer.call.close){
+        peer.call.close();
+      }
+      var call = self.peer.call(
+          peer_id,
+          self.stream,
+          {metadata: {reconnect: true}}
+      );
+
+      console.log("peer.call called from reconnect method");
+      peer.call = call;
+      self.setupStreamHandler_(call);
+    }
+    if(connections.screen) {
+      if(self.screenStream) {
+        if(peer.screen_sender && peer.screen_sender.close){
+          peer.screen_sender.close();
         }
         var call = self.peer.call(
             peer_id,
-            self.stream,
-            {metadata: {reconnect: true}}
+            self.screenStream,
+            {metadata: {reconnect: true, type: 'screen'}}
         );
-
-        console.log("peer.call called from reconnect method");
-        peer.call = call;
-        self.setupStreamHandler_(call);
-      }
-      if(connections.screen) {
-        if(self.screenStream) {
-          if(peer.screen_sender && peer.screen_sender.close){
-            peer.screen_sender.close();
-          }
-          var call = self.peer.call(
-              peer_id,
-              self.screenStream,
-              {metadata: {reconnect: true, type: 'screen'}}
-          );
-          console.log("peer.call called from reconnect method in screenshare");
-          peer.screen_sender = call;
-        }
-      }
-      if(connections.data) {
-        if(peer.DCconn && peer.DCconn.close){
-          peer.DCconn.close();
-        }
-        var conn = this.peer.connect(peer_id,
-          {
-            "serialization": this.opts.serialization,
-            "reliable": this.opts.reliable,
-            "metadata": {reconnect: true}
-          }
-        ).on('open', function(){
-          peer.DCconn = conn;
-          self.setupDCHandler_(conn);
-        });
+        console.log("peer.call called from reconnect method in screenshare");
+        peer.screen_sender = call;
       }
     }
+    if(connections.data) {
+      if(peer.DCconn && peer.DCconn.close){
+        peer.DCconn.close();
+      }
+      var conn = this.peer.connect(peer_id,
+        {
+          "serialization": this.opts.serialization,
+          "reliable": this.opts.reliable,
+          "metadata": {reconnect: true}
+        }
+      ).on('open', function(){
+        peer.DCconn = conn;
+        self.setupDCHandler_(conn);
+      });
+    }
+
   }
 
 
