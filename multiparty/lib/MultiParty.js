@@ -131,7 +131,7 @@
         }
 
         if(peer.screen_sender){
-          reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.screen_sender.peerConnection));
+          reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.screen_sender.peerConnection);
           reconnect.screen |= !peer.screen_sender.open;
         }
         if(peer.screen_receiver){
