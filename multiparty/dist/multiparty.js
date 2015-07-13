@@ -1337,17 +1337,6 @@ new function() {
           continue;
         }
         var peer = multiparty.peers[peer_id];
-        // try to reconnect if a peerConnection is closed
-        var stream = peer.call.remoteStream;
-        if(!stream) {
-          continue;
-        }
-        var videoTrack = stream.getVideoTracks()[0];
-        var audioTrack = stream.getAudioTracks()[0];
-        var isMuted = {
-          audio: !audioTrack.enabled,
-          video: !videoTrack.enabled
-        };
 
         var reconnect = {
           video: false,
@@ -1355,12 +1344,26 @@ new function() {
           data: false
         }
 
-        if(peer.call){
-          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
-          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
-          reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
-          reconnect.video |= !peer.call.open;
+        // try to reconnect if a peerConnection is closed
+        var stream = peer.call.remoteStream;
+        if(stream) {
+          var videoTrack = stream.getVideoTracks()[0];
+          var audioTrack = stream.getAudioTracks()[0];
+          var isMuted = {
+            audio: !audioTrack.enabled,
+            video: !videoTrack.enabled
+          };
+          if(peer.call){
+            reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
+            reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
+            reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
+            reconnect.video |= !peer.call.open;
+          }
+        } else {
+          reconnect.video = true;
         }
+
+
         if(peer.screen){
           reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.screen_sender.peerConnection));
           reconnect.screen |= !peer.screen_sender.open;
@@ -1381,9 +1384,12 @@ new function() {
             peer.reconnectIndex_++;
           }
           if (peer.reconnectIndex_ > 3) {
+            // close all connections and wait to try connecting again
             self.fire_('ms_close', peer_id);
             self.fire_('ss_close', peer_id);
             self.fire_('dc_close', peer_id);
+            self.fire_('peer_connection_failure', peer_id);
+            peer.reconnectIndex_ = 0;
           }
           self.reconnect(peer_id, reconnect);
         } else {
