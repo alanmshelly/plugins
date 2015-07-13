@@ -1974,6 +1974,9 @@ new function() {
           self.screenStream = stream;
           self.startCall_(true);
           util.log("MediaConnection created in OFFER");
+          stream.onended = function(){
+            self.fire_('ss_ended');
+          };
 
           //callback use video
           success(stream);
