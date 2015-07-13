@@ -1357,6 +1357,7 @@ new function() {
         var reconnect = {
           video: false,
           screen: false,
+          screen_receiver: false,
           data: false
         }
 
@@ -1366,9 +1367,17 @@ new function() {
           reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
           reconnect.video |= !peer.call.open;
         }
-        if(peer.screen){
+        if(peer.screen_sender){
           reconnect.screen |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.screen_sender.peerConnection));
           reconnect.screen |= !peer.screen_sender.open;
+        }
+        if(peer.screen_receiver){
+          var screenTrack = peer.screen_receiver.remoteStream.getVideoTracks()[0];
+          if(screenTrack){
+            reconnect.screen_receiver |=  !MultiParty_.util.isRemoteTrackActive(screenTrack, false);
+          }
+          reconnect.screen_receiver |= MultiParty_.util.isPeerConnectionClosed(peer.screen_receiver.peerConnection);
+          reconnect.screen_receiver |= !peer.screen_receiver.open;
         }
         if(peer.data){
           reconnect.data |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.DCconn.peerConnection));
@@ -1393,6 +1402,10 @@ new function() {
           self.reconnect(peer_id, reconnect);
         } else {
           peer.reconnectIndex_ = 0;
+        }
+        if(reconnect.screen_receiver){
+          peer.screen_receiver.close();
+          self.fire_('ss_close', peer_id);
         }
       }
 
