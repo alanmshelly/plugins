@@ -128,8 +128,9 @@
         }
 
         if(peer.call){
-          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
-          reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
+          reconnect.video |=
+            (!MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video) &&
+             !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio));
           reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
           reconnect.video |= !peer.call.open;
         }
