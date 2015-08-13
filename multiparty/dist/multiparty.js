@@ -1355,8 +1355,8 @@ new function() {
             video: !videoTrack.enabled
           };
           if(peer.call){
-            reconnect.video |= !MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video);
-            reconnect.video |= !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio);
+            (!MultiParty_.util.isRemoteTrackActive(videoTrack, isMuted.video) &&
+            !MultiParty_.util.isRemoteTrackActive(audioTrack, isMuted.audio));
             reconnect.video |= MultiParty_.util.isPeerConnectionClosed(peer.call.peerConnection);
             reconnect.video |= !peer.call.open;
           }
@@ -1371,10 +1371,23 @@ new function() {
         if(peer.screen_receiver){
           var screenTrack = peer.screen_receiver.remoteStream.getVideoTracks()[0];
           if(screenTrack){
-            reconnect.screen_receiver |=  !MultiParty_.util.isRemoteTrackActive(screenTrack, false);
+            if(!MultiParty_.util.isRemoteTrackActive(screenTrack, false)){
+              // screenshare can handle more interruptions so see if track
+              // is inactive two consecutive times before trying to reconnect
+              if(peer.screen_receiver.streamunstable){
+                reconnect.screen_receiver = true;
+                peer.screen_receiver.streamunstable = false;
+              } else {
+                peer.screen_receiver.streamunstable = true;
+              }
+            } else {
+              peer.screen_receiver.streamunstable = false;
+            }
           }
           reconnect.screen_receiver |= MultiParty_.util.isPeerConnectionClosed(peer.screen_receiver.peerConnection);
+          if(reconnect.screen_receiver) console.log('Reconnect b/c pc closed')
           reconnect.screen_receiver |= !peer.screen_receiver.open;
+          if(reconnect.screen_receiver) console.log('Reconnect b/c peer.open = false')
         }
         if(peer.data){
           reconnect.data |= MultiParty_.util.isPeerConnectionClosed(peer.isPeerConnectionClosed(peer.DCconn.peerConnection));
@@ -2086,8 +2099,6 @@ new function() {
     }
 
   }
-
-
 
   // オブジェクトの宣言
   if (!global.MultiParty) {
